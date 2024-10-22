@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 
 public class PlayerController : NetworkBehaviour
@@ -16,21 +17,46 @@ public class PlayerController : NetworkBehaviour
     private Vector3 _movement = Vector3.zero;
 
 
+
     public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
         //lock the cursor
         Cursor.lockState = CursorLockMode.Locked;
         if (!IsOwner)
         { 
             //ensure there is only one camera enabled locally per player
-            playerCamera.enabled = false;
+            if (playerCamera != null)
+            {
+                playerCamera.enabled = false;
+            }
             enabled = false;
+        }
+        else
+        {
+            // Ensure the camera is assigned for the owner
+            if (playerCamera == null)
+            {
+                playerCamera = GetComponentInChildren<Camera>();
+            }
+            else
+            {
+                playerCamera.enabled = true;
+                
+            }
             
         }
+        
+
     }
 
-    private void FixedUpdate()
+    private void Update()
     {
+        //if the player presses escape, unlock the cursor
+        if (Input.GetKeyDown(KeyCode.Escape))
+        { 
+            Cursor.lockState = CursorLockMode.None;
+        }
         //if were not the owner we shouldn't perform any actions on this player
         if (IsOwner)
         {
@@ -40,13 +66,11 @@ public class PlayerController : NetworkBehaviour
             //rotate the players camera
             RotateCamera();
             
-            
-            
+           
+         
         }
         
         
-        
-
     }
 
     private void RotateCamera()
@@ -54,20 +78,24 @@ public class PlayerController : NetworkBehaviour
         //record the mouse input
         _mouseX = Input.GetAxis("Mouse X") * mouseSpeed;
         _mouseY = Input.GetAxis("Mouse Y") * mouseSpeed;
-        
-        
-        //rotate around {0,1,0}
-        transform.Rotate(Vector3.up, _mouseX);
-       
-        
         //set the tracked vertical rotation
         _verticalRotation -= _mouseY;
         //clamp between the angle constraint (should be between (-90,90))
         _verticalRotation = Mathf.Clamp(_verticalRotation, -angleConstraint, angleConstraint);
-        //set the cameras local rotation based of the vertical rotation¬
+        //set the cameras local rotation based of the vertical rotation
+        
+        
+        // Update the player's yaw rotation (left-right) locally on the client
         playerCamera.transform.localRotation = Quaternion.Euler(_verticalRotation, 0f, 0f);
         
-        
+
+
+        UpdateRotationServerRpc(_mouseX);
+    }
+    [ServerRpc]
+    private void UpdateRotationServerRpc(float x)
+    {
+        transform.Rotate(Vector3.up * x);
     }
 
 
@@ -78,21 +106,29 @@ public class PlayerController : NetworkBehaviour
         _horizontalInput = Input.GetAxis("Horizontal");
         _verticalInput = Input.GetAxis("Vertical");  
     
+        
+        
         //if there is no movement detected, surprise surprise don't move
         if(_horizontalInput == 0 && _verticalInput == 0) return;
-        
-        //calculate the current movement direction
-        _movement = transform.right * _horizontalInput + transform.forward * _verticalInput;
-        
-        
         //apply movement to the transform position
-        transform.position += _movement * (speed * Time.deltaTime);
-        
-        
+        MovePlayerServerRpc(_horizontalInput, _verticalInput, Time.deltaTime);
+
+
     }
     
     
+    [ServerRpc]
+    private void MovePlayerServerRpc(float horizontalInput, float verticalInput, float delta)
+    {
 
+               
+        //calculate the current movement direction
+        var transform1 = transform;
+        _movement = transform1.right * horizontalInput + transform1.forward * verticalInput;
+                
+        transform.position += _movement * (speed * delta);
+
+    } 
 
     
     

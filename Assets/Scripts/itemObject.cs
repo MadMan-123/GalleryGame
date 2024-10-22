@@ -4,7 +4,9 @@ using UnityEngine;
 
 public enum itemType//GM: types of items
 {
-    pickUp,
+    speedBoost,//GM: increases player's speed (movement, interactions with objects can be done at a later point if people think it's a good idea)
+    equipment,//GM: Equipment type
+    megaSLAP,//GM: increases slap power, so basically knocks the other player back a little further.
     Default
 }
 public abstract class itemObject : ScriptableObject //GM: scriptable object is the base class for creating items | the absctract class is an extender so we can set up other types of objects

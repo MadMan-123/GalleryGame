@@ -1,10 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.Netcode;
-using Unity.Netcode.Components;
 using UnityEngine;
-
+using Mirror;
 public class PlayerController : NetworkBehaviour
 {
     //idk what to set the values just yet so for now 1 :)
@@ -15,19 +13,20 @@ public class PlayerController : NetworkBehaviour
     //movement data
     private float _horizontalInput, _verticalInput, _mouseX, _mouseY, _verticalRotation;
     private Vector3 _movement = Vector3.zero;
+    private GameObject cameraRef = null;
 
-
-
-    public override void OnNetworkSpawn()
+    public override void OnStartClient()
     {
-        base.OnNetworkSpawn();
+        base.OnStartClient();
+    
         //lock the cursor
         Cursor.lockState = CursorLockMode.Locked;
-        if (!IsOwner)
+        if (!isLocalPlayer)
         { 
             //ensure there is only one camera enabled locally per player
             if (playerCamera != null)
             {
+                cameraRef = playerCamera.gameObject;
                 playerCamera.enabled = false;
             }
             enabled = false;
@@ -38,12 +37,11 @@ public class PlayerController : NetworkBehaviour
             if (playerCamera == null)
             {
                 playerCamera = GetComponentInChildren<Camera>();
+
             }
-            else
-            {
-                playerCamera.enabled = true;
+
+            playerCamera.enabled = true;
                 
-            }
             
         }
         
@@ -52,13 +50,9 @@ public class PlayerController : NetworkBehaviour
 
     private void Update()
     {
-        //if the player presses escape, unlock the cursor
-        if (Input.GetKeyDown(KeyCode.Escape))
-        { 
-            Cursor.lockState = CursorLockMode.None;
-        }
+
         //if were not the owner we shouldn't perform any actions on this player
-        if (IsOwner)
+        if (isLocalPlayer)
         {
             //move the players position
             MovePlayer(); 
@@ -66,6 +60,11 @@ public class PlayerController : NetworkBehaviour
             //rotate the players camera
             RotateCamera();
             
+            //if the player presses escape, unlock the cursor
+            if (Input.GetKeyDown(KeyCode.Escape))
+            { 
+                Cursor.lockState = CursorLockMode.None;
+            }
            
          
         }
@@ -83,21 +82,14 @@ public class PlayerController : NetworkBehaviour
         //clamp between the angle constraint (should be between (-90,90))
         _verticalRotation = Mathf.Clamp(_verticalRotation, -angleConstraint, angleConstraint);
         //set the cameras local rotation based of the vertical rotation
-        
-        
+            
         // Update the player's yaw rotation (left-right) locally on the client
         playerCamera.transform.localRotation = Quaternion.Euler(_verticalRotation, 0f, 0f);
         
 
+        transform.Rotate(Vector3.up * _mouseX);
 
-        UpdateRotationServerRpc(_mouseX);
     }
-    [ServerRpc]
-    private void UpdateRotationServerRpc(float x)
-    {
-        transform.Rotate(Vector3.up * x);
-    }
-
 
     private void MovePlayer()
     {
@@ -106,29 +98,17 @@ public class PlayerController : NetworkBehaviour
         _horizontalInput = Input.GetAxis("Horizontal");
         _verticalInput = Input.GetAxis("Vertical");  
     
-        
-        
         //if there is no movement detected, surprise surprise don't move
         if(_horizontalInput == 0 && _verticalInput == 0) return;
-        //apply movement to the transform position
-        MovePlayerServerRpc(_horizontalInput, _verticalInput, Time.deltaTime);
-
-
-    }
-    
-    
-    [ServerRpc]
-    private void MovePlayerServerRpc(float horizontalInput, float verticalInput, float delta)
-    {
-
-               
+        
         //calculate the current movement direction
         var transform1 = transform;
-        _movement = transform1.right * horizontalInput + transform1.forward * verticalInput;
+        _movement = transform1.right * _horizontalInput + transform1.forward * _verticalInput;
                 
-        transform.position += _movement * (speed * delta);
+        transform.position += _movement * (speed * Time.deltaTime);
+    }
+    
 
-    } 
 
     
     

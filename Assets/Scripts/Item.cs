@@ -1,9 +1,10 @@
 using System;
+using Mirror;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-[RequireComponent(typeof(Rigidbody))]
-public class Item : MonoBehaviour
+//[RequireComponent(typeof(Rigidbody))]
+public class Item : NetworkBehaviour 
 {
 	[SerializeField] public Rigidbody rb;
 	[SerializeField] private Quaternion pickupRotation = Quaternion.identity;
@@ -19,6 +20,13 @@ public class Item : MonoBehaviour
 		
 	}
 
+	public void Debug(GameObject gameObject)
+	{
+		var force = gameObject.transform.forward * 10;
+		
+		rb.AddForce(force);
+	}
+	
 	public virtual void Use()
 	{
 		IsPerformingAction = true;

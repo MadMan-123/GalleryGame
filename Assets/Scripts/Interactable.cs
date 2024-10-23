@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Mirror;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -9,25 +10,30 @@ using UnityEditor;
 #endif
 
 
-public class Interactable : MonoBehaviour
+public class Interactable : NetworkBehaviour 
 {
     public UnityEvent<GameObject> OnInteract;
     public Item ConnectedItem;
-    public bool HasItem = false;
+    [SyncVar] public bool HasItem = false;
     public GameObject InteractSource;
     public bool debug = false;
     private void Start()
     {
         HasItem = TryGetComponent(out ConnectedItem);
     }
-
+    
+    
     public void Interact(GameObject Source)
     {
+        if(!NetworkServer.active) return;
+        
+        
         InteractSource = Source;
+        
+        
         if (OnInteract != null)
         {
-            OnInteract?.Invoke(Source);
-            
+ 
             
             #if UNITY_EDITOR
             //check if the index is valid
@@ -45,10 +51,22 @@ public class Interactable : MonoBehaviour
 
             if(debug)
                 Debug.Log("Interacted with " + OnInteract.GetPersistentMethodName(0) + " on " + gameObject.name + " from " + Source.name);
-            #endif            
+            #endif
+
+            OnInteract?.Invoke(Source);
+
+            OnInteractRpc(Source);
+
         }
         else if(debug)
             Debug.LogWarning("No Interact Event Set for interaction  ");
+    }
+    
+    [ClientRpc]
+    private void OnInteractRpc(GameObject Source)
+    {
+        
+            OnInteract?.Invoke(Source);
     }
 }
 

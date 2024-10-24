@@ -56,7 +56,9 @@ public class InteractManager : NetworkBehaviour
     [Command]
     private void CmdTryInteract(uint id)
     {
-        var identity = NetworkIdentity.spawned[id];
+        //todo: fix how we pass data to the server
+        var identity = NetworkIdentity.GetSceneIdentity(id);
+        
         
 
         if (!identity)
